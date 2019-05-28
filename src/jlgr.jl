@@ -45,7 +45,7 @@ const plot_kind = [:line, :step, :scatter, :stem, :hist, :contour, :contourf, :h
 
 const arg_fmt = [:xys, :xyac, :xyzc]
 
-const kw_args = [:accelerate, :algorithm, :alpha, :backgroundcolor, :clabels, :color, :colormap, :figsize, :isovalue, :labels, :levels, :location, :nbins, :rotation, :size, :tilt, :title, :where, :xflip, :xform, :xlabel, :xlim, :xlog, :yflip, :ylabel, :ylim, :ylog, :zflip, :zlabel, :zlim, :zlog, :clim]
+const kw_args = [:accelerate, :algorithm, :alpha, :backgroundcolor, :barwidth, :baseline, :clabels, :color, :colormap, :figsize, :isovalue, :labels, :levels, :location, :nbins, :rotation, :size, :tilt, :title, :where, :xflip, :xform, :xlabel, :xlim, :xlog, :yflip, :ylabel, :ylim, :ylog, :zflip, :zlabel, :zlim, :zlog, :clim]
 
 const colors = [
     [0xffffff, 0x000000, 0xff0000, 0x00ff00, 0x0000ff, 0x00ffff, 0xffff00, 0xff00ff] [0x282c34, 0xd7dae0, 0xcb4e42, 0x99c27c, 0x85a9fc, 0x5ab6c1, 0xd09a6a, 0xc57bdb] [0xfdf6e3, 0x657b83, 0xdc322f, 0x859900, 0x268bd2, 0x2aa198, 0xb58900, 0xd33682] [0x002b36, 0x839496, 0xdc322f, 0x859900, 0x268bd2, 0x2aa198, 0xb58900, 0xd33682]
@@ -399,6 +399,18 @@ function set_window(kind)
     GR.setscale(scale)
 end
 
+function ticklabel_fun(f::Function)
+    return (x, y, svalue, value) -> GR.textext(x, y, string(f(value)))
+end
+
+function ticklabel_fun(labels::AbstractVecOrMat{T}) where T <: AbstractString
+    (x, y, svalue, value) -> begin
+        pos = findfirst(t->(value≈t), collect(1:length(labels)))
+        lab = (pos == nothing) ? "" : labels[pos]
+        GR.textext(x, y, lab)
+    end
+end
+
 function draw_axes(kind, pass=1)
     viewport = plt.kvs[:viewport]
     vp = plt.kvs[:vp]
@@ -434,7 +446,13 @@ function draw_axes(kind, pass=1)
         else
             drawgrid && GR.grid(xtick, ytick, 0, 0, majorx, majory)
         end
-        GR.axes(xtick, ytick, xorg[1], yorg[1], majorx, majory, ticksize)
+        if haskey(plt.kvs, :xticklabels) || haskey(plt.kvs, :yticklabels)
+            fx = get(plt.kvs, :xticklabels, identity) |> ticklabel_fun
+            fy = get(plt.kvs, :yticklabels, identity) |> ticklabel_fun
+            GR.axeslbl(xtick, ytick, xorg[1], yorg[1], majorx, majory, ticksize, fx, fy)
+        else
+            GR.axes(xtick, ytick, xorg[1], yorg[1], majorx, majory, ticksize)
+        end
         GR.axes(xtick, ytick, xorg[2], yorg[2], -majorx, -majory, -ticksize)
     end
 
@@ -543,6 +561,9 @@ function legend_size()
     w, h
 end
 
+hasline(mask) = ( mask == 0x00 || (mask & 0x01 != 0) )
+hasmarker(mask) = ( mask & 0x02 != 0)
+
 function draw_legend()
     w, h = legend_size()
     viewport = plt.kvs[:viewport]
@@ -589,8 +610,8 @@ function draw_legend()
         end
         GR.savestate()
         mask = GR.uselinespec(spec)
-        mask in (0, 1, 3, 4, 5) && GR.polyline([px - 0.07, px - 0.01], [py, py])
-        mask & 0x02 != 0 && GR.polymarker([px - 0.06, px - 0.02], [py, py])
+        hasline(mask) && GR.polyline([px - 0.07, px - 0.01], [py, py])
+        hasmarker(mask) && GR.polymarker([px - 0.06, px - 0.02], [py, py])
         GR.restorestate()
         GR.settextalign(GR.TEXT_HALIGN_LEFT, GR.TEXT_VALIGN_HALF)
         if i <= num_labels
@@ -813,8 +834,10 @@ Set the flag to draw a grid in the plot axes.
 """
 drawgrid(flag) = (plt.kvs[:grid] = flag)
 
-"""
-Set the intervals of the ticks for the x axis.
+const doc_ticks = """
+Set the intervals of the ticks for the X, Y or Z axis.
+
+Use the function `xticks`, `yticks` or `zticks` for the corresponding axis.
 
 :param minor: the interval between minor ticks.
 :param major: (optional) the number of minor ticks between major ticks.
@@ -823,47 +846,37 @@ Set the intervals of the ticks for the x axis.
 
 .. code-block:: julia
 
-    julia> # Minor ticks every 0.2 units
+    julia> # Minor ticks every 0.2 units in the X axis
     julia> xticks(0.2)
-    julia> # Major ticks every 1 unit (5 minor ticks)
-    julia> xticks(0.2, 5)
-"""
-xticks(minor, major::Int=1) = (plt.kvs[:xticks] = (minor, major))
-
-"""
-Set the intervals of the ticks for the y axis.
-
-:param minor: the interval between minor ticks.
-:param major: (optional) the number of minor ticks between major ticks.
-
-**Usage examples:**
-
-.. code-block:: julia
-
-    julia> # Minor ticks every 0.2 units
-    julia> yticks(0.2)
-    julia> # Major ticks every 1 unit (5 minor ticks)
+    julia> # Major ticks every 1 unit (5 minor ticks) in the Y axis
     julia> yticks(0.2, 5)
 """
-yticks(minor, major::Int=1) = (plt.kvs[:yticks] = (minor, major))
 
-"""
-Set the intervals of the ticks for the z axis.
+@doc doc_ticks xticks(minor, major::Int=1) = (plt.kvs[:xticks] = (minor, major))
+@doc doc_ticks yticks(minor, major::Int=1) = (plt.kvs[:yticks] = (minor, major))
+@doc doc_ticks zticks(minor, major::Int=1) = (plt.kvs[:zticks] = (minor, major))
 
-:param minor: the interval between minor ticks.
-:param major: (optional) the number of minor ticks between major ticks.
+const doc_ticklabels = """
+Customize the string of the X and Y axes tick labels.
+
+The labels of the tick axis can be defined through a function
+with one argument (the numeric value of the tick position) and
+returns a string, or through an array of strings that are located
+sequentially at X = 1, 2, etc.
+
+:param s: function or array of strings that define the tick labels.
 
 **Usage examples:**
 
 .. code-block:: julia
 
-    julia> # Minor ticks every 0.2 units
-    julia> zticks(0.2)
-    julia> # Major ticks every 1 unit (5 minor ticks)
-    julia> zticks(0.2, 5)
+    julia> # Label the range (0-1) of the Y-axis as percent values
+    julia> yticklabels(p -> Base.Printf.@sprintf("%0.0f%%", 100p))
+    julia> # Label the X-axis with a sequence of strings
+    julia> xticklabels(["first", "second", "third"])
 """
-zticks(minor, major::Int=1) = (plt.kvs[:zticks] = (minor, major))
-
+@doc doc_ticklabels xticklabels(s) = (plt.kvs[:xticklabels] = s)
+@doc doc_ticklabels yticklabels(s) = (plt.kvs[:yticklabels] = s)
 
 # Normalize a color c with the range [cmin, cmax]
 #   0 <= normalize_color(c, cmin, cmax) <= 1
@@ -1111,11 +1124,11 @@ function plot_data(flag=true)
         end
         if kind == :line
             mask = GR.uselinespec(spec)
-            mask in (0, 1, 3, 4, 5) && GR.polyline(x, y)
-            mask & 0x02 != 0 && GR.polymarker(x, y)
+            hasline(mask) && GR.polyline(x, y)
+            hasmarker(mask) && GR.polymarker(x, y)
         elseif kind == :step
             mask = GR.uselinespec(spec)
-            if mask in (0, 1, 3, 4, 5)
+            if hasline(mask)
                 where = get(plt.kvs, :where, "mid")
                 if where == "pre"
                     n = length(x)
@@ -1328,6 +1341,15 @@ function plot_data(flag=true)
                 GR.shadelines(x, y, xform=xform)
             else
                 GR.shadepoints(x, y, xform=xform)
+            end
+        elseif kind == :bar
+            for i = 1:2:length(x)
+                GR.setfillcolorind(989)
+                GR.setfillintstyle(GR.INTSTYLE_SOLID)
+                GR.fillrect(x[i], x[i+1], y[i], y[i+1])
+                GR.setfillcolorind(1)
+                GR.setfillintstyle(GR.INTSTYLE_HOLLOW)
+                GR.fillrect(x[i], x[i+1], y[i], y[i+1])
             end
         end
         GR.restorestate()
@@ -1687,6 +1709,68 @@ function stem(args...; kv...)
 
     plot_data()
 end
+
+function barcoordinates(heights; barwidth=0.8, baseline=0.0, kv...)
+    n = length(heights)
+    halfw = barwidth/2
+    wc = zeros(2n)
+    hc  = zeros(2n)
+    for (i, value) in enumerate(heights)
+        wc[2i-1] = i - halfw
+        wc[2i]   = i + halfw
+        hc[2i-1] = baseline
+        hc[2i]   = value
+    end
+    (wc, hc)
+end
+
+"""
+Draw a bar plot.
+
+If no specific labels are given, the axis is labelled with integer
+numbers starting from 1.
+
+Use the keyword arguments **barwidth**, **baseline** or **horizontal**
+to modify the default width of the bars (by default 0.8 times the separation
+between bars), the baseline value (by default zero), or the direction of
+the bars (by default vertical).
+
+:param labels: the labels of the bars
+:param heights: the heights of the bars
+
+**Usage examples:**
+
+.. code-block:: julia
+
+    julia> # World population by continents (millions)
+    julia> population = Dict("Africa" => 1216,
+                             "America" => 1002,
+                             "Asia" => 4436,
+                             "Europe" => 739,
+                             "Oceania" => 38)
+    julia> barplot(keys(population), values(population))
+    julia> # Horizontal bar plot
+    julia> barplot(keys(population), values(population), horizontal=true)
+"""
+function barplot(labels, heights; kv...)
+    kv = Dict(kv)
+    wc, hc = barcoordinates(heights; kv...)
+    horizontal = pop!(kv, :horizontal, false)
+    create_context(:bar, kv)
+    if horizontal
+        plt.args = [(hc, wc, Nothing, Nothing, "")]
+        yticks(1,1)
+        yticklabels(string.(labels))
+    else
+        plt.args = [(wc, hc, Nothing, Nothing, "")]
+        xticks(1,1)
+        xticklabels(string.(labels))
+    end
+
+    plot_data()
+end
+
+barplot(heights; kv...) = barplot(string.(1:length(heights)), heights; kv...)
 
 function hist(x, nbins::Integer=0)
     if nbins <= 1
