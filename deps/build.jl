@@ -32,7 +32,7 @@ function check_grdir()
 end
 
 function get_version()
-    version = v"0.40.0"
+    version = v"0.41.0"
     try
 @static if VERSION >= v"0.7.0-DEV.3656"
         v = installed()["GR"]
@@ -43,6 +43,11 @@ end
             version = "latest"
         end
     catch
+    end
+    if "GRDIR" in keys(ENV)
+        if length(ENV["GRDIR"]) == 0
+            version = "latest"
+        end
     end
     version
 end
@@ -80,6 +85,8 @@ if !check_grdir()
         os = "Ubuntu"
       elseif id == "debian" || id_like == "debian"
         os = "Debian"
+      elseif id == "arch"
+        os = "ArchLinux"
       end
     end
   elseif os == :Linux && arch in [:i386, :i686]
