@@ -640,12 +640,13 @@ function colorbar(off=0, colors=256)
         options = GR.inqscale()
         GR.setscale(options & mask)
     end
+    h = 0.5 * (zmax - zmin) / (colors - 1)
     GR.setwindow(0, 1, zmin, zmax)
     GR.setviewport(viewport[2] + 0.02 + off, viewport[2] + 0.05 + off,
                    viewport[3], viewport[4])
     l = zeros(Int32, 1, colors)
     l[1,:] = Int[round(Int, _i) for _i in linspace(1000, 1255, colors)]
-    GR.cellarray(0, 1, zmax, zmin, 1, colors, l)
+    GR.cellarray(0, 1, zmax + h, zmin - h, 1, colors, l)
     GR.setlinecolorind(1)
     diag = sqrt((viewport[2] - viewport[1])^2 + (viewport[4] - viewport[3])^2)
     charheight = max(0.016 * diag, 0.012)
@@ -1287,6 +1288,7 @@ function plot_data(flag=true)
             w, h = size(z)
             cmap = colormap()
             cmin, cmax = plt.kvs[:crange]
+            levels = get(plt.kvs, :levels, 256)
             data = map(x -> normalize_color(x, cmin, cmax), z)
             if kind == :heatmap
                 rgba = [to_rgba(value, cmap) for value = data]
@@ -1295,7 +1297,7 @@ function plot_data(flag=true)
                 colors = Int[round(Int, 1000 + _i * 255) for _i in data]
                 GR.nonuniformcellarray(x, y, w, h, colors)
             end
-            colorbar()
+            colorbar(0, levels)
         elseif kind == :wireframe
             if length(x) == length(y) == length(z)
                 x, y, z = GR.gridit(x, y, z, 50, 50)
