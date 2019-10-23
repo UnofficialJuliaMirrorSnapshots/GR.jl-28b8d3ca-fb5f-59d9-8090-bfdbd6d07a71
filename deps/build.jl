@@ -28,7 +28,7 @@ function check_grdir()
 end
 
 function get_version()
-    version = v"0.41.4"
+    version = v"0.41.5"
     try
 @static if VERSION >= v"1.4.0-DEV.265"
         v = string(Pkg.dependencies()[Base.UUID("28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71")].version)
@@ -89,6 +89,12 @@ if !check_grdir()
     end
   elseif os == :Linux && arch in [:i386, :i686]
     arch = :i386
+  elseif os == :Linux && arch == :arm
+    id = get_os_release("ID")
+    if id == "raspbian"
+      os = "Debian"
+    end
+    arch = "armhf"
   end
   version = get_version()
   tarball = "gr-$version-$os-$arch.tar.gz"
