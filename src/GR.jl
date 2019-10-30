@@ -1942,7 +1942,7 @@ by the `setscale` function.
 `x`, `y` :
     Normalized device coordinates of the label in X and Y directions.
 `svalue` :
-    Internal string representation of the text drawn at `(x,y).
+    Internal string representation of the text drawn at `(x,y)`.
 `value` :
     Floating point representation of the label drawn at `(x,y)`.
 
@@ -3326,7 +3326,7 @@ end
 
 function inline(mime="svg", scroll=true)
     global mime_type, file_path, figure_count, send_c, recv_c
-    init(true)
+    init()
     if mime_type != mime
         if mime == "iterm"
             file_path = tempname() * ".pdf"
