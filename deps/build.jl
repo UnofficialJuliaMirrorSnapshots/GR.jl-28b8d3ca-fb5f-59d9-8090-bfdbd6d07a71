@@ -83,7 +83,7 @@ if !check_grdir()
         os = "Ubuntu"
       elseif id == "debian" || id_like == "debian"
         os = "Debian"
-      elseif id == "arch"
+      elseif id == "arch" || id_like == "arch"
         os = "ArchLinux"
       end
     end
@@ -119,7 +119,10 @@ if !check_grdir()
     end
   end
   if os == :Windows
-    home = (VERSION < v"0.7-") ? JULIA_HOME : Sys.BINDIR
+    home = Sys.BINDIR
+    if VERSION > v"1.3.0-"
+      home =  joinpath(Sys.BINDIR, "..", "libexec")
+    end
     success(`$home/7z x downloads/$tarball -y`)
     rm("downloads/$tarball")
     tarball = tarball[1:end-3]
